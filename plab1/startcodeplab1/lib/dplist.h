@@ -120,4 +120,12 @@ int dpl_get_index_of_element(dplist_t* list, void* element);
  */
 void* dpl_get_element_at_reference(dplist_t* list, dplist_node_t* reference);
 
+/** Returns the head node of the list.
+ * - If the list is NULL, NULL is returned.
+ * - If the list is empty, NULL is returned.
+ * \param list a pointer to the list
+ * \return the first node of the list
+ */
+dplist_node_t* dpl_get_head(dplist_t* list);
+
 #endif // _DPLIST_H_

@@ -71,7 +71,7 @@ dplist_t* dpl_insert_at_index(dplist_t* list, void* element, int index, bool ins
     }
     list_node = malloc(sizeof(dplist_node_t));
     if (insert_copy == true) {
-        list_node->element = list->element_copy(&element);
+        list_node->element = list->element_copy(element);
     } else {
         list_node->element = element;
     }
@@ -226,4 +226,12 @@ void* dpl_get_element_at_reference(dplist_t* list, dplist_node_t* reference)
         return NULL;
     }
     return reference->element;
+}
+
+dplist_node_t* dpl_get_head(dplist_t* list)
+{
+    if(list == NULL || list->head == NULL)
+        return NULL;
+    else
+        return list->head;
 }
