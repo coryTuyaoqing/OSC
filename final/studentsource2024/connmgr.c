@@ -49,7 +49,6 @@ int connmgr_start(sbuffer_t *buffer, int MAX_CONN, int PORT){
     // tell other thread to stop through buffer (send end message)
     printf("connmgr sent end msg\n");
     sbuffer_insert(gateway_buffer, &END_MSG);
-    sbuffer_insert(gateway_buffer, &END_MSG);
 
     printf("Test server is shutting down\n");
     return CONNMGR_SUCCESS;
@@ -74,7 +73,6 @@ void *connmgr_listener(void *param){
             printf("sensor id = %" PRIu16
                    " - temperature = %g - timestamp = %ld\n",
                    data.id, data.value, (long int)data.ts);
-            // TODO: put data into buffer
             sbuffer_insert(gateway_buffer, &data);
 
         }

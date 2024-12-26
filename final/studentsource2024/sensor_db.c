@@ -45,3 +45,29 @@ int close_db(FILE *f) {
 
     return 0;
 }
+
+int start_sensor_db(FILE *f, sbuffer_t *buffer){
+	sensor_data_t sensor_data;
+	int result;
+	while(1){
+		/*read data from buffer*/ 
+		do{
+			result = sbuffer_remove(buffer, &sensor_data);
+			// printf("sensor_db read no data\n");
+		}while(result == SBUFFER_NO_DATA);
+		if(result == SBUFFER_FAILURE){
+			printf("Sensor database fail to read data from buffer\n");
+			return SENSOR_DB_FAILURE;
+		}
+
+		/*check if connmgr sent END_MSG (all zero sensor data)*/ 
+		if(sensor_data.ts == 0 && sensor_data.id == 0 && sensor_data.value == 0){
+			printf("Sensor database end\n");
+			return SENSOR_DB_SUCCESS;
+		}
+
+		/*insert data into data.csv*/
+		printf("sensor_db: %d - %f - %ld\n", sensor_data.id, sensor_data.value, (long int) sensor_data.ts);
+		insert_sensor(f, sensor_data.id, sensor_data.value, sensor_data.ts);
+	}
+}

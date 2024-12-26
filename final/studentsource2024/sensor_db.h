@@ -1,5 +1,5 @@
 /**
- * \author Bert Lagaisse
+ * \author Yaoqing Tu
  */
 
 #ifndef _SENSOR_DB_H_
@@ -8,9 +8,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "config.h"
-#include "logger.h"
+#include "sbuffer.h"
 
 #include <stdbool.h>
+
+#define SENSOR_DB_SUCCESS 0
+#define SENSOR_DB_FAILURE 1
 
 /** open csv file and return FILE pointer
 * - overwrite csv file or not depending on boolean value 'append' 
@@ -41,5 +44,11 @@ int insert_sensor(FILE * f, sensor_id_t id, sensor_value_t value, sensor_ts_t ts
 */
 int close_db(FILE * f);
 
+/**
+ * \param buffer shared data buffer
+ * \param db_file opened db csv file
+ * \return result sensor_db flag
+ */
+int start_sensor_db(FILE *f, sbuffer_t *buffer);
 
 #endif /* _SENSOR_DB_H_ */

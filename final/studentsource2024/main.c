@@ -4,7 +4,6 @@
 #include "datamgr.h"
 #include "sensor_db.h"
 #include "connmgr.h"
-#include "logger.h"
 
 sbuffer_t *buffer;
 int MAX_CONN, PORT;
@@ -14,8 +13,6 @@ void *datamgr_thread(void *param);
 void *sensor_db_thread(void *param);
 
 int main(int argc, char *argv[]) {
-    puts("Hello from main\n");
-
     if (argc < 3) {
         printf("Please provide the right arguments: first the port, then the "
                "max nb of clients");
@@ -66,12 +63,14 @@ void *datamgr_thread(void *param){
     pthread_exit(0);
 }
 void *sensor_db_thread(void *param){
-    FILE *sensor_db = open_db("data.csv", false);
+    FILE *db_file = open_db("data.csv", false);
     // read data from buffer in a loop
     // put data into sensor_db.csv
+    start_sensor_db(db_file, buffer);
 
-
-    close_db(sensor_db);
+    close_db(db_file);
 
     pthread_exit(0);
 }
+
+

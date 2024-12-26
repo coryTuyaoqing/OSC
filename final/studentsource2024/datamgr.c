@@ -110,8 +110,7 @@ int datamgr_start(sbuffer_t *buffer) {
 	while(1){
 		/*read data from buffer*/ 
 		do{
-			// TODO: use peek at the end!
-			result = sbuffer_remove(buffer, &sensor_data);
+			result = sbuffer_peek(buffer, &sensor_data);
 			// printf("datamgr read no data\n");
 		}while(result == SBUFFER_NO_DATA);
 		if(result == SBUFFER_FAILURE){
