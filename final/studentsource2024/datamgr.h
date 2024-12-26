@@ -22,6 +22,9 @@
 #define SET_MIN_TEMP -10
 #endif
 
+#define DATAMGR_SUCCESS 0
+#define DATAMGR_FAILURE 1
+
 /*
  * Use ERROR_HANDLER() for handling memory allocation problems, invalid sensor IDs, non-existing files, etc.
  */
@@ -89,6 +92,13 @@ int datamgr_get_total_sensors();
  * \param buffer the shared data buffer in sensor gateway
  * \return new average temp
  */
-sensor_value_t datamgr_read_buffer(sbuffer_t *buffer);
+int datamgr_start(sbuffer_t *buffer);
+
+/**
+ * Update temperature array and average temperature
+ * \param element the temperature element of target room
+ * \param new_temp new temperature data coming from sensor
+ */
+void datamgr_update_temp(temp_element_t *element, sensor_value_t new_temp);
 
 #endif

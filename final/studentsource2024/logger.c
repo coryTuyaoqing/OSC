@@ -8,7 +8,9 @@ FILE* log_file;
 int write_to_log_process(char *msg){
 	if(pid > 0){ //parent process
 		char msg_delimited[SIZE];
-		snprintf(msg_delimited, SIZE, "%s^", msg);
+		snprintf(msg_delimited, SIZE, "%s^", msg); // add delimiter '^' to each msg
+
+		// TODO: make sure the pipe is thread safe!
 		write(fd[WRITE_END], msg_delimited, strlen(msg_delimited));
 	}
 
@@ -33,7 +35,7 @@ int create_log_process(){
 	}
 	else if(pid == 0){ //child process
 		close(fd[WRITE_END]);
-		log_file = fopen(LOG_FILE_NAME, "a");
+		log_file = fopen(LOG_FILE_NAME, "w"); // a new and empty gateway.log file should be created
 		char log_msg[SIZE];
 		char *start, *end;
 		while(true){
@@ -54,6 +56,7 @@ int create_log_process(){
 }
 
 void process_log_msg(char* log_msg){
+	// TODO: check if it should be end or not
 	time_t t = time(NULL);
 	char *time_string = ctime(&t);
 	time_string[strlen(time_string)-1] = '\0';
@@ -65,6 +68,8 @@ void process_log_msg(char* log_msg){
 int end_log_process(){
 	if(pid > 0){ //parent process
 		close(fd[WRITE_END]);
+		// tell child process to stop listening
+		write_to_log_process("END");
 	}
 	else if(pid == 0){ //child process
 		close(fd[READ_END]);

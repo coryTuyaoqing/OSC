@@ -12,14 +12,14 @@ sensor_gateway : main.c connmgr.c datamgr.c sensor_db.c sbuffer.c logger.c lib/l
 	gcc -c connmgr.c   -Wall -std=c11 -Werror -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o connmgr.o   -fdiagnostics-color=auto
 	gcc -c datamgr.c   -Wall -std=c11 -Werror -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o datamgr.o   -fdiagnostics-color=auto
 	gcc -c sensor_db.c -Wall -std=c11 -Werror -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o sensor_db.o -fdiagnostics-color=auto
-	gcc -c logger.c   -Wall -std=c11 -Werror -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o logger.o   -fdiagnostics-color=auto
+	gcc -c logger.c    -Wall -std=c11 -Werror -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o logger.o    -fdiagnostics-color=auto
 	gcc -c sbuffer.c   -Wall -std=c11 -Werror -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -o sbuffer.o   -fdiagnostics-color=auto
 	@echo "$(TITLE_COLOR)\n***** LINKING sensor_gateway *****$(NO_COLOR)"
 	gcc main.o connmgr.o datamgr.o sensor_db.o sbuffer.o logger.o -ldplist -ltcpsock -lpthread -o sensor_gateway -Wall -L./lib -Wl,-rpath=./lib -fdiagnostics-color=auto
 
 #target for a quick build of your source code.
 sensor_gateway_quick :
-	gcc -w -Werror -o sensor_gateway main.c connmgr.c datamgr.c sensor_db.c logger.c sbuffer.c lib/dplist.c lib/tcpsock.c -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -lpthread 
+	gcc -w -o sensor_gateway main.c connmgr.c datamgr.c sensor_db.c sbuffer.c logger.c lib/dplist.c lib/tcpsock.c -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -lpthread 
 		
 sensor_gateway_debug :
 	gcc -g -w -o sensor_gateway main.c connmgr.c datamgr.c sensor_db.c sbuffer.c logger.c lib/dplist.c lib/tcpsock.c -DSET_MIN_TEMP=10 -DSET_MAX_TEMP=20 -DTIMEOUT=5 -lpthread 
@@ -62,7 +62,7 @@ clean-all: clean
 	rm -rf lib/*.so
 
 run : sensor_gateway sensor_node
-	@echo "Add your own implementation here..."
+	./sensor_gateway 1234 3
 
 zip:
-	zip lab_final.zip main.c connmgr.c connmgr.h datamgr.c datamgr.h sbuffer.c sbuffer.h sensor_db.c sensor_db.h config.h lib/dplist.c lib/dplist.h lib/tcpsock.c lib/tcpsock.h Makefile
+	zip lab_final.zip main.c connmgr.c connmgr.h datamgr.c datamgr.h logger.c logger.h sbuffer.c sbuffer.h sensor_db.c sensor_db.h config.h lib/dplist.c lib/dplist.h lib/tcpsock.c lib/tcpsock.h Makefile

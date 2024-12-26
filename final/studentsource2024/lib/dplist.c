@@ -38,7 +38,6 @@ dplist_t* dpl_create( // callback functions
 
 void dpl_free(dplist_t** list, bool free_element)
 {
-    // TODO: add your code here
     dplist_t* dplist = *list;
     if (dplist != NULL) {
         dplist_node_t* dplist_node = dplist->head;
@@ -62,7 +61,6 @@ void dpl_free(dplist_t** list, bool free_element)
 
 dplist_t* dpl_insert_at_index(dplist_t* list, void* element, int index, bool insert_copy)
 {
-    // TODO: add your code here
     dplist_node_t *ref_at_index, *list_node;
     if (list == NULL) {
         return list;
@@ -104,7 +102,6 @@ dplist_t* dpl_insert_at_index(dplist_t* list, void* element, int index, bool ins
 
 dplist_t* dpl_remove_at_index(dplist_t* list, int index, bool free_element)
 {
-    // TODO: add your code here
     int size = dpl_size(list);
     dplist_node_t* dummy = NULL;
     if (list != NULL && size != 0) {
@@ -146,7 +143,6 @@ dplist_t* dpl_remove_at_index(dplist_t* list, int index, bool free_element)
 
 int dpl_size(dplist_t* list)
 {
-    // TODO: add your code here
     int size = 0;
     if (list == NULL)
         size = -1;
@@ -162,7 +158,6 @@ int dpl_size(dplist_t* list)
 
 void* dpl_get_element_at_index(dplist_t* list, int index)
 {
-    // TODO: add your code here
     void* element = NULL;
     dplist_node_t* dummy = dpl_get_reference_at_index(list, index);
     if (dummy != NULL) {
@@ -174,7 +169,6 @@ void* dpl_get_element_at_index(dplist_t* list, int index)
 
 int dpl_get_index_of_element(dplist_t* list, void* element)
 {
-    // TODO: add your code here
     if (list == NULL) {
         return -1;
     }
@@ -193,11 +187,9 @@ int dpl_get_index_of_element(dplist_t* list, void* element)
 
 dplist_node_t* dpl_get_reference_at_index(dplist_t* list, int index)
 {
-    // TODO: add your code here
     dplist_node_t* dummy = NULL;
     int size = dpl_size(list);
 
-    // TODO: add your code here
     if (list != NULL) {
         dummy = list->head;
         if (index > 0) {
@@ -212,8 +204,6 @@ dplist_node_t* dpl_get_reference_at_index(dplist_t* list, int index)
 
 void* dpl_get_element_at_reference(dplist_t* list, dplist_node_t* reference)
 {
-
-    // TODO: add your code here
     if (list == NULL) {
         return NULL;
     } else if (list->head == NULL) {
