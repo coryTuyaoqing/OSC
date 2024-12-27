@@ -5,12 +5,6 @@
 #include <pthread.h>
 #include "sbuffer.h"
 
-pid_t pid;
-int fd[2];
-int log_num = 0;
-FILE* log_file;
-pthread_mutex_t fd_mutex;
-
 /**
  * basic node for the buffer, these nodes are linked together to create the buffer
  */
@@ -49,6 +43,7 @@ int sbuffer_free(sbuffer_t **buffer) {
     // critical session
     if ((buffer == NULL) || (*buffer == NULL)) {
         pthread_mutex_unlock(&(*buffer)->mutex); // unlock mutex
+        pthread_cond_destroy(&(*buffer)->condvar);
         return SBUFFER_FAILURE;
     }
     while ((*buffer)->head) {
@@ -57,6 +52,7 @@ int sbuffer_free(sbuffer_t **buffer) {
         free(dummy);
     }
     pthread_mutex_unlock(&(*buffer)->mutex); // unlock mutex
+    pthread_mutex_destroy(&(*buffer)->mutex);
     free(*buffer);
     *buffer = NULL;
     return SBUFFER_SUCCESS;
@@ -73,13 +69,9 @@ int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data) {
         pthread_mutex_unlock(&buffer->mutex); // unlock mutex
         return SBUFFER_FAILURE;
     }
-    if (buffer->head == NULL) { // no data
-        pthread_mutex_unlock(&buffer->mutex); // unlock mutex
-        return SBUFFER_NO_DATA;
-    }
 
-    // remove only when the buffer is removable
-    while(buffer->removable)
+    // can't remove when the buffer is not removable or empty
+    while(!buffer->removable || buffer->head == NULL)
         pthread_cond_wait(&buffer->condvar, &buffer->mutex);
 
     *data = buffer->head->data;
@@ -91,6 +83,7 @@ int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data) {
     {
         buffer->head = buffer->head->next;
     }
+    free(dummy);
 
     buffer->removable = false; // set buffer to not removalbe after remove
     // printf("buffer is removed; buffer removable: %s\n", buffer->removable ? "removable" : "not removable");
@@ -98,8 +91,6 @@ int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data) {
     pthread_cond_signal(&buffer->condvar);
     pthread_mutex_unlock(&buffer->mutex); // unlock mutex
     // printf("thread%ld: after get from buffer\n", pthread_self());
-
-    free(dummy);
 
     return SBUFFER_SUCCESS;
 }
@@ -113,13 +104,9 @@ int sbuffer_peek(sbuffer_t *buffer, sensor_data_t *data){
         pthread_mutex_unlock(&buffer->mutex); // unlock mutex
         return SBUFFER_FAILURE;
     }
-    if (buffer->head == NULL) { // no data
-        pthread_mutex_unlock(&buffer->mutex); // unlock mutex
-        return SBUFFER_NO_DATA;
-    }
 
-    // peek only when buffer is not removable
-    while(buffer->removable)
+    // can't peek when buffer is removable or empty
+    while(buffer->removable || buffer->head == NULL)
         pthread_cond_wait(&buffer->condvar, &buffer->mutex);
 
     *data = buffer->head->data;
@@ -160,11 +147,20 @@ int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data) {
         buffer->tail->next = dummy;
         buffer->tail = buffer->tail->next;
     }
+    pthread_cond_signal(&buffer->condvar);
     pthread_mutex_unlock(&buffer->mutex); // unlock mutex
     // printf("thread%ld: after insert data\n", pthread_self());
 
     return SBUFFER_SUCCESS;
 }
+
+/* ---- the following code is related to log process ------*/
+
+pid_t pid;
+int fd[2];
+int log_num = 0;
+FILE* log_file;
+pthread_mutex_t fd_mutex;
 
 int write_to_log_process(char *msg){
 	if(pid > 0){ //parent process
@@ -200,6 +196,13 @@ int create_log_process(){
 	else if(pid == 0){ //child process
 		close(fd[WRITE_END]);
 		log_file = fopen(LOG_FILE_NAME, "w"); // a new and empty gateway.log file should be created
+        if(log_file == NULL){
+            printf("Log file fail to create.\n");
+            process_log_msg("Log file fail to create.");
+        }
+        else{
+            process_log_msg("A new log file has been created.");
+        }
 		char log_msg[SIZE];
 		char *start, *end;
 		while(true){
@@ -232,10 +235,12 @@ void process_log_msg(char* log_msg){
 int end_log_process(){
 	if(pid > 0){ //parent process
 		close(fd[WRITE_END]);
-		// close write end and let child process read EOF and stop
+        pthread_mutex_destroy(&fd_mutex);
+        wait(NULL);
 	}
 	else if(pid == 0){ //child process
 		close(fd[READ_END]);
+        process_log_msg("The log file is closing.");
 		fclose(log_file);
 	}
 

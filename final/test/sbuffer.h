@@ -12,13 +12,8 @@
 #include <time.h>
 #include <stdbool.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include "config.h"
-
-#define SIZE 2048
-#define READ_END 0
-#define WRITE_END 1
-#define LOG_FILE_NAME "gateway.log"
-#define ENG_MSG "END"
 
 #define SBUFFER_FAILURE -1
 #define SBUFFER_SUCCESS 0
@@ -42,7 +37,7 @@ int sbuffer_free(sbuffer_t **buffer);
 
 /**
  * Removes the first sensor data in 'buffer' (at the 'head') and returns this sensor data as '*data'
- * If 'buffer' is empty, the function doesn't block until new sensor data becomes available but returns SBUFFER_NO_DATA
+ * If 'buffer' is empty, the function doesn block until new sensor data becomes available
  * \param buffer a pointer to the buffer that is used
  * \param data a pointer to pre-allocated sensor_data_t space, the data will be copied into this structure. No new memory is allocated for 'data' in this function.
  * \return SBUFFER_SUCCESS on success and SBUFFER_FAILURE if an error occurred
@@ -51,7 +46,7 @@ int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data);
 
 /**
  * Read the first sensor data in 'buffer' (at the 'head') and returns this sensor data as '*data'
- * If 'buffer' is empty, the function doesn't block until new sensor data becomes available but returns SBUFFER_NO_DATA
+ * If 'buffer' is empty, the function does block until new sensor data becomes available
  * \param buffer a pointer to the buffer that is used
  * \param data a pointer to pre-allocated sensor_data_t space, the data will be copied into this structure. No new memory is allocated for 'data' in this function.
  * \return SBUFFER_SUCCESS on success and SBUFFER_FAILURE if an error occurred
@@ -65,6 +60,16 @@ int sbuffer_peek(sbuffer_t *buffer, sensor_data_t *data);
  * \return SBUFFER_SUCCESS on success and SBUFFER_FAILURE if an error occured
 */
 int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data);
+
+
+
+/* ---- the following code is related to log process ------*/
+
+#define SIZE 2048
+#define READ_END 0
+#define WRITE_END 1
+#define LOG_FILE_NAME "gateway.log"
+#define ENG_MSG "END"
 
 /**
  * Write a log message to log file. 

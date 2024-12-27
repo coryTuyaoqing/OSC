@@ -43,6 +43,7 @@ int sbuffer_free(sbuffer_t **buffer) {
     // critical session
     if ((buffer == NULL) || (*buffer == NULL)) {
         pthread_mutex_unlock(&(*buffer)->mutex); // unlock mutex
+        pthread_cond_destroy(&(*buffer)->condvar);
         return SBUFFER_FAILURE;
     }
     while ((*buffer)->head) {
@@ -51,6 +52,7 @@ int sbuffer_free(sbuffer_t **buffer) {
         free(dummy);
     }
     pthread_mutex_unlock(&(*buffer)->mutex); // unlock mutex
+    pthread_mutex_destroy(&(*buffer)->mutex);
     free(*buffer);
     *buffer = NULL;
     return SBUFFER_SUCCESS;
@@ -68,14 +70,9 @@ int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data) {
         return SBUFFER_FAILURE;
     }
 
-    // remove only when the buffer is removable
-    while(!buffer->removable)
+    // can't remove when the buffer is not removable or empty
+    while(!buffer->removable || buffer->head == NULL)
         pthread_cond_wait(&buffer->condvar, &buffer->mutex);
-
-    if (buffer->head == NULL) { // no data
-        pthread_mutex_unlock(&buffer->mutex); // unlock mutex
-        return SBUFFER_NO_DATA;
-    }
 
     *data = buffer->head->data;
     dummy = buffer->head;
@@ -86,6 +83,7 @@ int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data) {
     {
         buffer->head = buffer->head->next;
     }
+    free(dummy);
 
     buffer->removable = false; // set buffer to not removalbe after remove
     // printf("buffer is removed; buffer removable: %s\n", buffer->removable ? "removable" : "not removable");
@@ -93,8 +91,6 @@ int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data) {
     pthread_cond_signal(&buffer->condvar);
     pthread_mutex_unlock(&buffer->mutex); // unlock mutex
     // printf("thread%ld: after get from buffer\n", pthread_self());
-
-    free(dummy);
 
     return SBUFFER_SUCCESS;
 }
@@ -109,14 +105,9 @@ int sbuffer_peek(sbuffer_t *buffer, sensor_data_t *data){
         return SBUFFER_FAILURE;
     }
 
-    // peek only when buffer is not removable
-    while(buffer->removable)
+    // can't peek when buffer is removable or empty
+    while(buffer->removable || buffer->head == NULL)
         pthread_cond_wait(&buffer->condvar, &buffer->mutex);
-
-    if (buffer->head == NULL) { // no data
-        pthread_mutex_unlock(&buffer->mutex); // unlock mutex
-        return SBUFFER_NO_DATA;
-    }
 
     *data = buffer->head->data;
 
@@ -156,6 +147,7 @@ int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data) {
         buffer->tail->next = dummy;
         buffer->tail = buffer->tail->next;
     }
+    pthread_cond_signal(&buffer->condvar);
     pthread_mutex_unlock(&buffer->mutex); // unlock mutex
     // printf("thread%ld: after insert data\n", pthread_self());
 
@@ -243,7 +235,8 @@ void process_log_msg(char* log_msg){
 int end_log_process(){
 	if(pid > 0){ //parent process
 		close(fd[WRITE_END]);
-		// close write end and let child process read EOF and stop
+        pthread_mutex_destroy(&fd_mutex);
+        wait(NULL);
 	}
 	else if(pid == 0){ //child process
 		close(fd[READ_END]);

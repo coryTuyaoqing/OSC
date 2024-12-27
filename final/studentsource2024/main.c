@@ -45,6 +45,7 @@ int main(int argc, char *argv[]) {
     }
     
     end_log_process();
+    printf("Gateway server is shutdown.\n");
 
     return 0;
 }
@@ -58,9 +59,12 @@ void *connmgr_thread(void *param){
 
 void *datamgr_thread(void *param){
     FILE *map = fopen("room_sensor.map", "r");
+    
     datamgr_init(map);
     datamgr_start(buffer);
     datamgr_free();
+    fclose(map);
+
     pthread_exit(0);
 }
 void *sensor_db_thread(void *param){

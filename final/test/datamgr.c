@@ -33,7 +33,7 @@ void *element_copy(void *element) {
 }
 
 void element_free(void **element) {
-    free(*element);
+    free((temp_element_t *)*element);
     *element = NULL;
 }
 
@@ -109,10 +109,8 @@ int datamgr_start(sbuffer_t *buffer) {
 	int result;
 	while(1){
 		/*read data from buffer*/ 
-		do{
-			result = sbuffer_peek(buffer, &sensor_data);
-			// printf("datamgr read no data\n");
-		}while(result == SBUFFER_NO_DATA);
+		result = sbuffer_peek(buffer, &sensor_data);
+		// printf("datamgr read no data\n");
 		if(result == SBUFFER_FAILURE){
 			printf("Data manager fail to read data from buffer\n");
 			return DATAMGR_FAILURE;

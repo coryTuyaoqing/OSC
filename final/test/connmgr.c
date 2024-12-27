@@ -1,3 +1,5 @@
+#include <sys/select.h>
+#include <errno.h>
 #include "connmgr.h"
 
 /**
@@ -50,8 +52,9 @@ int connmgr_start(sbuffer_t *buffer, int MAX_CONN, int PORT){
     // tell other thread to stop through buffer (send end message)
     printf("connmgr sent end msg\n");
     sbuffer_insert(gateway_buffer, &END_MSG);
+    pthread_mutex_destroy(&counter_mutex);
 
-    printf("Test server is shutting down\n");
+    printf("Connection manager is shutting down\n");
     return CONNMGR_SUCCESS;
 }
 
@@ -59,6 +62,10 @@ void *connmgr_listener(void *param){
     int bytes, result, sequence = 0;
     sensor_data_t data;
     tcpsock_t *client = param;
+    // time_t last_data;
+
+    // pthread_t tid_timer;
+    // pthread_attr_t attr;
 
     if (tcp_wait_for_connection(server, &client) != TCP_NO_ERROR){
         printf("wait for connection error.");
@@ -72,26 +79,30 @@ void *connmgr_listener(void *param){
     do {
         // read sensor ID
         bytes = sizeof(data.id);
-        result = tcp_receive(client, (void *)&data.id, &bytes);
+        result = connmgr_receive_time_limited(client, (void *)&data.id, &bytes, TIMEOUT);
+        if(result == CONNMGR_TIMEOUT) break;
         // read temperature
         bytes = sizeof(data.value);
-        result = tcp_receive(client, (void *)&data.value, &bytes);
+        result = connmgr_receive_time_limited(client, (void *)&data.value, &bytes, TIMEOUT);
+        if(result == CONNMGR_TIMEOUT) break;
         // read timestamp
         bytes = sizeof(data.ts);
-        result = tcp_receive(client, (void *)&data.ts, &bytes);
+        result = connmgr_receive_time_limited(client, (void *)&data.ts, &bytes, TIMEOUT);
+        if(result == CONNMGR_TIMEOUT) break;
         if ((result == TCP_NO_ERROR) && bytes) {
             printf("Connection manager: sensor id = %" PRIu16
                    " - temperature = %g - timestamp = %ld, the %d times\n",
                    data.id, data.value, (long int)data.ts, sequence+1);
-            sbuffer_insert(gateway_buffer, &data);
-        }
-        if(sequence == 0){
+                sbuffer_insert(gateway_buffer, &data);
+
             // create log for first data package arrived
-            char msg[50];
-            sprintf(msg, "Sensor node %d has opened a new connection.", data.id);
-            write_to_log_process(msg);
+            if(sequence == 0){
+                char msg[50];
+                sprintf(msg, "Sensor node %d has opened a new connection.", data.id);
+                write_to_log_process(msg);
+            }
+            sequence++;
         }
-        sequence++;
     } while (result == TCP_NO_ERROR);
     if (result == TCP_CONNECTION_CLOSED){
         printf("Peer has closed connection\n");
@@ -99,9 +110,55 @@ void *connmgr_listener(void *param){
         sprintf(msg, "Sensor node %d has closed the connection.", data.id);
         write_to_log_process(msg);
     }
-    else
+    else if(result == CONNMGR_TIMEOUT){
+        printf("Client-%d hasn't sent data for %d seconds. TIMEOUT ERROR.\n", data.id, TIMEOUT);
+    }
+    else    
         printf("Error occured on connection to peer\n");
     tcp_close(&client);
 
     pthread_exit(0);
+}
+
+int connmgr_receive_time_limited(tcpsock_t *socket, void *buffer, int *buf_size, int seconds){
+    // pthread_t tid_timer;
+    // pthread_
+
+    // int result = tcp_receive(socket, buf_size, buf_size);
+
+    // return result;
+    if (!socket || !buffer || !buf_size || *buf_size <= 0) {
+        return TCP_SOCKET_ERROR; // Invalid parameters
+    }
+
+    // Get the file descriptor from the socket
+    int sock_fd = 0;
+    tcp_get_sd(socket, &sock_fd);
+    if (sock_fd < 0) {
+        return TCP_SOCKET_ERROR; // Error retrieving file descriptor
+    }
+
+    // Set up the timeout for select()
+    struct timeval timeout;
+    timeout.tv_sec = seconds;
+    timeout.tv_usec = 0;
+
+    // Set up the file descriptor set
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    FD_SET(sock_fd, &readfds);
+
+    // Wait for data to become available
+    int result = select(sock_fd + 1, &readfds, NULL, NULL, &timeout);
+    if (result == 0) {
+        // Timeout occurred
+        return CONNMGR_TIMEOUT;
+    } else if (result < 0) {
+        // Error in select()
+        perror("select error");
+        return TCP_SOCKET_ERROR;
+    }
+
+    // Data is available, proceed with tcp_receive
+    return tcp_receive(socket, buffer, buf_size);
 }

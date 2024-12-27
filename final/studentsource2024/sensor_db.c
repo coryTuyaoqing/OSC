@@ -51,10 +51,8 @@ int start_sensor_db(FILE *f, sbuffer_t *buffer){
 	int result;
 	while(1){
 		/*read data from buffer*/ 
-		do{
-			result = sbuffer_remove(buffer, &sensor_data);
-			// printf("sensor_db read no data\n");
-		}while(result == SBUFFER_NO_DATA);
+		result = sbuffer_remove(buffer, &sensor_data);
+		// printf("sensor_db read no data\n");
 		if(result == SBUFFER_FAILURE){
 			printf("Sensor database fail to read data from buffer\n");
 			return SENSOR_DB_FAILURE;
