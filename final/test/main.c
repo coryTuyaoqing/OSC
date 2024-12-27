@@ -59,7 +59,7 @@ void *connmgr_thread(void *param){
 void *datamgr_thread(void *param){
     FILE *map = fopen("room_sensor.map", "r");
     datamgr_init(map);
-    datamgr_start(buffer);
+    // datamgr_start(buffer);
     datamgr_free();
     pthread_exit(0);
 }

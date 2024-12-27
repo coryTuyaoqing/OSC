@@ -14,6 +14,12 @@
 #include <sys/types.h>
 #include "config.h"
 
+#define SIZE 2048
+#define READ_END 0
+#define WRITE_END 1
+#define LOG_FILE_NAME "gateway.log"
+#define ENG_MSG "END"
+
 #define SBUFFER_FAILURE -1
 #define SBUFFER_SUCCESS 0
 #define SBUFFER_NO_DATA 1
@@ -59,16 +65,6 @@ int sbuffer_peek(sbuffer_t *buffer, sensor_data_t *data);
  * \return SBUFFER_SUCCESS on success and SBUFFER_FAILURE if an error occured
 */
 int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data);
-
-
-
-/* ---- the following code is related to log process ------*/
-
-#define SIZE 2048
-#define READ_END 0
-#define WRITE_END 1
-#define LOG_FILE_NAME "gateway.log"
-#define ENG_MSG "END"
 
 /**
  * Write a log message to log file. 

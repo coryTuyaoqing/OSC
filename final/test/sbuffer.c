@@ -5,6 +5,12 @@
 #include <pthread.h>
 #include "sbuffer.h"
 
+pid_t pid;
+int fd[2];
+int log_num = 0;
+FILE* log_file;
+pthread_mutex_t fd_mutex;
+
 /**
  * basic node for the buffer, these nodes are linked together to create the buffer
  */
@@ -67,15 +73,14 @@ int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data) {
         pthread_mutex_unlock(&buffer->mutex); // unlock mutex
         return SBUFFER_FAILURE;
     }
-
-    // remove only when the buffer is removable
-    while(!buffer->removable)
-        pthread_cond_wait(&buffer->condvar, &buffer->mutex);
-
     if (buffer->head == NULL) { // no data
         pthread_mutex_unlock(&buffer->mutex); // unlock mutex
         return SBUFFER_NO_DATA;
     }
+
+    // remove only when the buffer is removable
+    while(buffer->removable)
+        pthread_cond_wait(&buffer->condvar, &buffer->mutex);
 
     *data = buffer->head->data;
     dummy = buffer->head;
@@ -108,15 +113,14 @@ int sbuffer_peek(sbuffer_t *buffer, sensor_data_t *data){
         pthread_mutex_unlock(&buffer->mutex); // unlock mutex
         return SBUFFER_FAILURE;
     }
-
-    // peek only when buffer is not removable
-    while(buffer->removable)
-        pthread_cond_wait(&buffer->condvar, &buffer->mutex);
-
     if (buffer->head == NULL) { // no data
         pthread_mutex_unlock(&buffer->mutex); // unlock mutex
         return SBUFFER_NO_DATA;
     }
+
+    // peek only when buffer is not removable
+    while(buffer->removable)
+        pthread_cond_wait(&buffer->condvar, &buffer->mutex);
 
     *data = buffer->head->data;
 
@@ -162,14 +166,6 @@ int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data) {
     return SBUFFER_SUCCESS;
 }
 
-/* ---- the following code is related to log process ------*/
-
-pid_t pid;
-int fd[2];
-int log_num = 0;
-FILE* log_file;
-pthread_mutex_t fd_mutex;
-
 int write_to_log_process(char *msg){
 	if(pid > 0){ //parent process
 		char msg_delimited[SIZE];
@@ -204,13 +200,6 @@ int create_log_process(){
 	else if(pid == 0){ //child process
 		close(fd[WRITE_END]);
 		log_file = fopen(LOG_FILE_NAME, "w"); // a new and empty gateway.log file should be created
-        if(log_file == NULL){
-            printf("Log file fail to create.\n");
-            process_log_msg("Log file fail to create.");
-        }
-        else{
-            process_log_msg("A new log file has been created.");
-        }
 		char log_msg[SIZE];
 		char *start, *end;
 		while(true){
@@ -247,7 +236,6 @@ int end_log_process(){
 	}
 	else if(pid == 0){ //child process
 		close(fd[READ_END]);
-        process_log_msg("The log file is closing.");
 		fclose(log_file);
 	}
 
