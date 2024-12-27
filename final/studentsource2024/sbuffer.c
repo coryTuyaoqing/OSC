@@ -159,7 +159,7 @@ int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data) {
 pid_t pid;
 int fd[2];
 int log_num = 0;
-FILE* log_file;
+FILE* log_file = NULL;
 pthread_mutex_t fd_mutex;
 
 int write_to_log_process(char *msg){
@@ -203,8 +203,9 @@ int create_log_process(){
         else{
             process_log_msg("A new log file has been created.");
         }
-		char log_msg[SIZE];
-		char *start, *end;
+		char log_msg[SIZE] = {0};
+		char *start = NULL;
+        char *end = NULL;
 		while(true){
 			size_t byte_read = read(fd[READ_END], log_msg, SIZE);
 			if(byte_read > 0){
@@ -237,11 +238,13 @@ int end_log_process(){
 		close(fd[WRITE_END]);
         pthread_mutex_destroy(&fd_mutex);
         wait(NULL);
+        printf("Gateway server is shutdown.\n");
 	}
 	else if(pid == 0){ //child process
 		close(fd[READ_END]);
         process_log_msg("The log file is closing.");
 		fclose(log_file);
+        printf("Log process is closed.\n");
 	}
 
 	return 0;

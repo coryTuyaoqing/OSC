@@ -11,11 +11,6 @@ int conn_counter = 0;
 pthread_mutex_t counter_mutex;
 tcpsock_t *server;
 sbuffer_t *gateway_buffer;
-sensor_data_t END_MSG = {
-    .id = 0,
-    .value = 0,
-    .ts = 0
-};
 
 int connmgr_start(sbuffer_t *buffer, int MAX_CONN, int PORT){
     gateway_buffer = buffer;
@@ -50,8 +45,13 @@ int connmgr_start(sbuffer_t *buffer, int MAX_CONN, int PORT){
 
     // if all sensor nodes close connections
     // tell other thread to stop through buffer (send end message)
-    printf("connmgr sent end msg\n");
+    sensor_data_t END_MSG = {
+        .id = 0,
+        .value = 0,
+        .ts = 0
+    };
     sbuffer_insert(gateway_buffer, &END_MSG);
+    printf("Connection manager sent end msg\n");
     pthread_mutex_destroy(&counter_mutex);
 
     printf("Connection manager is shutting down\n");
@@ -97,7 +97,7 @@ void *connmgr_listener(void *param){
 
             // create log for first data package arrived
             if(sequence == 0){
-                char msg[50];
+                char msg[100] = {0};
                 sprintf(msg, "Sensor node %d has opened a new connection.", data.id);
                 write_to_log_process(msg);
             }
@@ -106,12 +106,15 @@ void *connmgr_listener(void *param){
     } while (result == TCP_NO_ERROR);
     if (result == TCP_CONNECTION_CLOSED){
         printf("Peer has closed connection\n");
-        char msg[50];
+        char msg[100] = {0};
         sprintf(msg, "Sensor node %d has closed the connection.", data.id);
         write_to_log_process(msg);
     }
     else if(result == CONNMGR_TIMEOUT){
         printf("Client-%d hasn't sent data for %d seconds. TIMEOUT ERROR.\n", data.id, TIMEOUT);
+        char msg[100] = {0};
+        sprintf(msg, "Sensor %d connection overtime.", data.id);
+        write_to_log_process(msg);
     }
     else    
         printf("Error occured on connection to peer\n");

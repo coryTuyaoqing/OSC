@@ -1,71 +1,67 @@
+//
+// Created by flynn on 24-12-25.
+//
+
 #include "sensor_db.h"
-#include <stdio.h>
-#include <stdlib.h>
 
-FILE *open_db(char *filename, bool append) {
-    // if in append mode, generate a log saying 'an existing file is opened'
-    // if in overwrite mode, generate a log saying 'a new file is genereated'
-    char *msg;
+#include <string.h>
+#include <unistd.h>
+#define SIZE 400
+#define READ_END 0
+#define WRITE_END 1
 
-	char *indicator = append ? "a" : "w";
-	FILE *file = fopen(filename, indicator);
-	if (file != NULL) {
-		if (append == true)
-			msg = "The old data.csv file is opened.";
-		else
-			msg = "A new data.csv file has been created.";
-	}
-	else{
-		printf("data.csv file fail to create\n");
-		return NULL;
-	}
-	write_to_log_process(msg);
-	return file;
-}
-int insert_sensor(FILE *f, sensor_id_t id, sensor_value_t value, sensor_ts_t ts) {
-    char msg[50];
+extern int complete_transfer;
+extern pthread_mutex_t mutex;
+extern pthread_mutex_t mutex_log;
+extern pid_t pid;
+extern int fd[2];
 
-    if (f != NULL) {
-        int write_result = fprintf(f, "%d, %f, %ld\n", id, value, (long)ts);
-        if (write_result != -1) {
-            sprintf(msg, "Data insertion from sensor %d succeeded.", id);
-        } else {
-            sprintf(msg, "Data insertion from sensor %d failed.", id);
+typedef struct
+{
+    sbuffer_t *sbuffer;
+    pthread_mutex_t *mutex;
+}stormgrData;
+
+void *stormgr(void* arg)
+{
+    FILE *file = fopen("data.csv", "w");
+    char message2[SIZE];
+    snprintf(message2, SIZE, "A new data.csv file has been created");
+    pthread_mutex_lock(&mutex_log);
+    write(fd[WRITE_END], message2, strlen(message2)+1);
+    pthread_mutex_unlock(&mutex_log);
+    if (file == NULL) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+    stormgrData* stormgrdata = (stormgrData*)arg;
+    sbuffer_t *sbuffer = stormgrdata->sbuffer;
+    while(1){
+        if (complete_transfer==1){break;}
+        if(sbuffer_head(sbuffer)!=NULL){
+            sensor_data_t *data = (sensor_data_t *)malloc(sizeof(sensor_data_t));
+            pthread_mutex_lock(&mutex);
+            int sbuffer_state = sbuffer_remove(sbuffer, data,STORAGE);
+            pthread_mutex_unlock(&mutex);
+            if (sbuffer_state==SBUFFER_SUCCESS)
+            {
+                printf("StorageManager Receive data is: %d - %ld - %f\n\n\n\n\n",data->id,data->ts,data->value);\
+                fprintf(file, "%d  %ld  %f\n",data->id,data->ts,data->value);
+                char message4[SIZE];
+                snprintf(message4, SIZE, "Data insertion from sensor %d succeeded",data->id);
+                pthread_mutex_lock(&mutex_log);
+                write(fd[WRITE_END], message4, strlen(message4)+1);
+                pthread_mutex_unlock(&mutex_log);
+            }
+            free(data);
         }
     }
+    fclose(file);
+    char message3[SIZE];
+    snprintf(message3, SIZE, "A new data.csv file has been closed");
+    pthread_mutex_lock(&mutex_log);
+    write(fd[WRITE_END], message3, strlen(message3)+1);
+    pthread_mutex_unlock(&mutex_log);
 
-    write_to_log_process(msg);
-
-    return 0;
-}
-int close_db(FILE *f) {
-    fclose(f);
-    char *msg = "The data.csv file has been closed.";
-    write_to_log_process(msg);
-
-    return 0;
-}
-
-int start_sensor_db(FILE *f, sbuffer_t *buffer){
-	sensor_data_t sensor_data;
-	int result;
-	while(1){
-		/*read data from buffer*/ 
-		result = sbuffer_remove(buffer, &sensor_data);
-		// printf("sensor_db read no data\n");
-		if(result == SBUFFER_FAILURE){
-			printf("Sensor database fail to read data from buffer\n");
-			return SENSOR_DB_FAILURE;
-		}
-
-		/*check if connmgr sent END_MSG (all zero sensor data)*/ 
-		if(sensor_data.ts == 0 && sensor_data.id == 0 && sensor_data.value == 0){
-			printf("Sensor database end\n");
-			return SENSOR_DB_SUCCESS;
-		}
-
-		/*insert data into data.csv*/
-		printf("Sensor database: %d - %f - %ld\n", sensor_data.id, sensor_data.value, (long int) sensor_data.ts);
-		insert_sensor(f, sensor_data.id, sensor_data.value, sensor_data.ts);
-	}
+    return NULL;
 }

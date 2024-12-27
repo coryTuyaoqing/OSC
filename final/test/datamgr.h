@@ -1,29 +1,37 @@
-/**
- * \author {Yaoqing}
- */
+//
+// Created by flynn on 24-12-24.
+//
 
-#ifndef _DATAMGR_H_
-#define _DATAMGR_H_
+#ifndef DATAMGR_H
+#define DATAMGR_H
 
 #include <stdlib.h>
 #include <stdio.h>
 #include "config.h"
+#include <assert.h>
+#include "lib/dplist.h"
 #include "sbuffer.h"
+#include <time.h>
+
+#define SBUFFER_FAILURE -1
+#define SBUFFER_SUCCESS 0
+#define SBUFFER_NO_DATA 1
+#define SBUFFER_WAIT 2
+#define SBUFFER_READED 3
 
 #ifndef RUN_AVG_LENGTH
 #define RUN_AVG_LENGTH 5
 #endif
 
+// #define SET_MAX_TEMP 20
+// #define SET_MIN_TEMP 10
 #ifndef SET_MAX_TEMP
-#define SET_MAX_TEMP 30
+#error SET_MAX_TEMP not set
 #endif
 
 #ifndef SET_MIN_TEMP
-#define SET_MIN_TEMP -10
+#error SET_MIN_TEMP not set
 #endif
-
-#define DATAMGR_SUCCESS 0
-#define DATAMGR_FAILURE 1
 
 /*
  * Use ERROR_HANDLER() for handling memory allocation problems, invalid sensor IDs, non-existing files, etc.
@@ -35,16 +43,16 @@
                       }                                             \
                     } while(0)
 
-typedef struct temp_element temp_element_t;
-
 /**
- *  Thes method parse the sensor-room map file and initialize the dplist. The data is leave empty.
+ *  This method holds the core functionality of your datamgr. It takes in 2 file pointers to the sensor files and parses them.
+ *  When the method finishes all data should be in the internal pointer list and all log messages should be printed to stderr.
  *  \param fp_sensor_map file pointer to the map file
+ *  \param fp_sensor_data file pointer to the binary data file
  */
-void datamgr_init(FILE *fp_sensor_map);
+void *datamgr_parse_sensor_files(void* arg);
 
 /**
- * This method should be called to clean up the datamgr, and to free all used memory. 
+ * This method should be called to clean up the datamgr, and to free all used memory.
  * After this, any call to datamgr_get_room_id, datamgr_get_avg, datamgr_get_last_modified or datamgr_get_total_sensors will not return a valid result
  */
 void datamgr_free();
@@ -74,31 +82,13 @@ sensor_value_t datamgr_get_avg(sensor_id_t sensor_id);
 time_t datamgr_get_last_modified(sensor_id_t sensor_id);
 
 /**
- * Returns the temp_element for a certain sensor ID
- * Use ERROR_HANDLER() if sensor_id is invalid
- * \param sensor_id the sensor id to look for
- * \return the temp element for the given sensor
- */
-temp_element_t *datamgr_get_temp_element(sensor_id_t sensor_id);
-
-/**
  *  Return the total amount of unique sensor ID's recorded by the datamgr
  *  \return the total amount of sensors
  */
 int datamgr_get_total_sensors();
 
-/**
- * Read sensor data from a sbuffer and update the data in temp_avg_list (dplist)
- * \param buffer the shared data buffer in sensor gateway
- * \return new average temp
- */
-int datamgr_start(sbuffer_t *buffer);
+void add_new_data(dplist_t*, sensor_id_t, double, time_t);
 
-/**
- * Update temperature array and average temperature
- * \param element the temperature element of target room
- * \param new_temp new temperature data coming from sensor
- */
-void datamgr_update_temp(temp_element_t *element, sensor_value_t new_temp);
 
-#endif
+
+#endif //DATAMGR_H

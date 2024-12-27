@@ -45,7 +45,6 @@ int main(int argc, char *argv[]) {
     }
     
     end_log_process();
-    printf("Gateway server is shutdown.\n");
 
     return 0;
 }
@@ -61,7 +60,10 @@ void *datamgr_thread(void *param){
     FILE *map = fopen("room_sensor.map", "r");
     
     datamgr_init(map);
-    datamgr_start(buffer);
+    int result = datamgr_start(buffer);
+    if(result == DATAMGR_FAILURE){
+        printf("DATAMGR_FAILURE\n");
+    }
     datamgr_free();
     fclose(map);
 
@@ -71,7 +73,10 @@ void *sensor_db_thread(void *param){
     FILE *db_file = open_db("data.csv", false);
     // read data from buffer in a loop
     // put data into sensor_db.csv
-    start_sensor_db(db_file, buffer);
+    int result = start_sensor_db(db_file, buffer);
+    if(result == SENSOR_DB_FAILURE){
+        printf("SENSOR_DB_FAILURE\n");
+    }
 
     close_db(db_file);
 

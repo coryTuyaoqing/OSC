@@ -126,18 +126,18 @@ int datamgr_start(sbuffer_t *buffer) {
 		temp_element_t *element = datamgr_get_temp_element(sensor_data.id);
 		element->last_modified_ts = sensor_data.ts;
 		datamgr_update_temp(element, sensor_data.value);
-		printf("Data manager get: sensor-%d with temp_avg = %f, at %d times\n", element->sensor_id, element->temp_avg, element->n);
+		printf("Data manager get: sensor-%d with temp_avg = %f and ts = %ld, at %d times\n", element->sensor_id, element->temp_avg, (long)element->last_modified_ts, element->n);
 
 		/*give out advice*/ 
 		if(element->temp_avg > SET_MAX_TEMP){
 			printf("Warning: Room-%d is too hot.\n", element->room_id);
-			char msg[100];
+			char msg[100] = {0};
 			sprintf(msg, "Sensor node %d reports it's too hot (avg temp = %f)", element->sensor_id, element->temp_avg);
 			write_to_log_process(msg);
 		}
 		else if(element->temp_avg < SET_MIN_TEMP){
 			printf("Warning: Room-%d is too cold.\n", element->room_id);
-			char msg[100];
+			char msg[100] = {0};
 			sprintf(msg, "Sensor node %d reports it's too cold (avg temp = %f)", element->sensor_id, element->temp_avg);
 			write_to_log_process(msg);
 		}

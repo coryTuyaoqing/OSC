@@ -1,6 +1,43 @@
-0 - Fri Dec 27 16:49:19 2024 - A new log file has been created.
-1 - Fri Dec 27 16:49:19 2024 - A new data.csv file has been created.
-2 - Fri Dec 27 16:49:21 2024 - Sensor node 49 has opened a new connection.
-3 - Fri Dec 27 16:49:21 2024 - Data insertion from sensor 49 succeeded.
-4 - Fri Dec 27 16:49:26 2024 - The data.csv file has been closed.
-5 - Fri Dec 27 16:49:26 2024 - The log file is closing.
+0 - Fri Dec 27 21:17:07 2024 - A new log file has been created.
+1 - Fri Dec 27 21:17:07 2024 - A new data.csv file has been created.
+2 - Fri Dec 27 21:17:10 2024 - Sensor node 21 has opened a new connection.
+3 - Fri Dec 27 21:17:10 2024 - Sensor node 15 has opened a new connection.
+4 - Fri Dec 27 21:17:10 2024 - Data insertion from sensor 21 succeeded.
+5 - Fri Dec 27 21:17:10 2024 - Data insertion from sensor 15 succeeded.
+6 - Fri Dec 27 21:17:10 2024 - Sensor node 37 has opened a new connection.
+7 - Fri Dec 27 21:17:10 2024 - Sensor node 132 has opened a new connection.
+8 - Fri Dec 27 21:17:10 2024 - Sensor node 142 has opened a new connection.
+9 - Fri Dec 27 21:17:10 2024 - Data insertion from sensor 37 succeeded.
+10 - Fri Dec 27 21:17:10 2024 - Data insertion from sensor 132 succeeded.
+11 - Fri Dec 27 21:17:10 2024 - Data insertion from sensor 142 succeeded.
+12 - Fri Dec 27 21:17:11 2024 - Data insertion from sensor 15 succeeded.
+13 - Fri Dec 27 21:17:12 2024 - Data insertion from sensor 37 succeeded.
+14 - Fri Dec 27 21:17:12 2024 - Data insertion from sensor 15 succeeded.
+15 - Fri Dec 27 21:17:13 2024 - Data insertion from sensor 132 succeeded.
+16 - Fri Dec 27 21:17:13 2024 - Data insertion from sensor 15 succeeded.
+17 - Fri Dec 27 21:17:13 2024 - Data insertion from sensor 21 succeeded.
+18 - Fri Dec 27 21:17:13 2024 - Data insertion from sensor 142 succeeded.
+19 - Fri Dec 27 21:17:14 2024 - Data insertion from sensor 15 succeeded.
+20 - Fri Dec 27 21:17:14 2024 - Data insertion from sensor 37 succeeded.
+21 - Fri Dec 27 21:17:15 2024 - Data insertion from sensor 15 succeeded.
+22 - Fri Dec 27 21:17:16 2024 - Data insertion from sensor 132 succeeded.
+23 - Fri Dec 27 21:17:16 2024 - Data insertion from sensor 37 succeeded.
+24 - Fri Dec 27 21:17:16 2024 - Data insertion from sensor 15 succeeded.
+25 - Fri Dec 27 21:17:16 2024 - Data insertion from sensor 21 succeeded.
+26 - Fri Dec 27 21:17:16 2024 - Data insertion from sensor 142 succeeded.
+27 - Fri Dec 27 21:17:17 2024 - Data insertion from sensor 15 succeeded.
+28 - Fri Dec 27 21:17:18 2024 - Data insertion from sensor 37 succeeded.
+29 - Fri Dec 27 21:17:18 2024 - Data insertion from sensor 15 succeeded.
+30 - Fri Dec 27 21:17:19 2024 - Data insertion from sensor 132 succeeded.
+31 - Fri Dec 27 21:17:19 2024 - Data insertion from sensor 15 succeeded.
+32 - Fri Dec 27 21:17:19 2024 - Data insertion from sensor 21 succeeded.
+33 - Fri Dec 27 21:17:19 2024 - Data insertion from sensor 142 succeeded.
+34 - Fri Dec 27 21:17:20 2024 - Data insertion from sensor 37 succeeded.
+35 - Fri Dec 27 21:17:20 2024 - Data insertion from sensor 15 succeeded.
+36 - Fri Dec 27 21:17:20 2024 - Sensor node 15 has closed the connection.
+37 - Fri Dec 27 21:17:20 2024 - Sensor node 142 has closed the connection.
+38 - Fri Dec 27 21:17:20 2024 - Sensor node 21 has closed the connection.
+39 - Fri Dec 27 21:17:20 2024 - Sensor node 132 has closed the connection.
+40 - Fri Dec 27 21:17:20 2024 - Sensor node 37 has closed the connection.
+41 - Fri Dec 27 21:17:20 2024 - The data.csv file has been closed.
+42 - Fri Dec 27 21:17:20 2024 - The log file is closing.

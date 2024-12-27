@@ -1,164 +1,159 @@
-#include <sys/select.h>
-#include <errno.h>
+//
+// Created by flynn on 24-12-24.
+//
 #include "connmgr.h"
 
-/**
- * Server listening thread runner
- */
-void *connmgr_listener(void *param);
+#include <string.h>
+#include <unistd.h>
+#define SIZE 400
+#define READ_END 0
+#define WRITE_END 1
+extern int complete_transfer;
+extern pthread_mutex_t mutex;
+extern pthread_mutex_t mutex_log;
 
-int conn_counter = 0;
-pthread_mutex_t counter_mutex;
-tcpsock_t *server;
-sbuffer_t *gateway_buffer;
-sensor_data_t END_MSG = {
-    .id = 0,
-    .value = 0,
-    .ts = 0
-};
+typedef struct
+{
+    tcpsock_t *client;
+    sbuffer_t *sbuffer;
+} threadData;
 
-int connmgr_start(sbuffer_t *buffer, int MAX_CONN, int PORT){
-    gateway_buffer = buffer;
+typedef struct
+{
+    int MAX_CONN;
+    int PORT;
+    sbuffer_t *sbuffer;
+    pthread_mutex_t* mutex;
+} connmgrdata;
 
-    tcpsock_t *client[MAX_CONN]; // client array with length of max_conn
+extern pid_t pid;
+extern int fd[2];
 
-    // thread initialization
-    pthread_t tid[MAX_CONN];   /* the thread identifier */
-    pthread_attr_t attr;       /* set of thread attributes */
-    /* set the default attributes of the thread */
-    pthread_attr_init(&attr);
-    pthread_mutex_init(&counter_mutex, NULL);
-
-    printf("Test server is started\n");
-    if (tcp_passive_open(&server, PORT) != TCP_NO_ERROR) {
-        printf("tcp_passive_open error.\n");
-        return CONNMGR_FAILURE;
-    }
-        
-    for(int i=0; i<MAX_CONN; i++){
-        /* create the thread */
-        pthread_create(&tid[i], &attr, connmgr_listener, client[i]);
-    }
-
-
-    /* wait for the thread to exit */
-    for (int i = 0; i < MAX_CONN; i++) {
-        pthread_join(tid[i], NULL);
-    }
-
-    if (tcp_close(&server) != TCP_NO_ERROR) return CONNMGR_FAILURE;
-
-    // if all sensor nodes close connections
-    // tell other thread to stop through buffer (send end message)
-    printf("connmgr sent end msg\n");
-    sbuffer_insert(gateway_buffer, &END_MSG);
-    pthread_mutex_destroy(&counter_mutex);
-
-    printf("Connection manager is shutting down\n");
-    return CONNMGR_SUCCESS;
-}
-
-void *connmgr_listener(void *param){
-    int bytes, result, sequence = 0;
+void *read_thread(void* arg)
+{
+    printf("Incoming client connection\n");
+    threadData* tdata = (threadData*)arg;
+    tcpsock_t *client = tdata->client;
+    sbuffer_t *sbuffer = tdata->sbuffer;
     sensor_data_t data;
-    tcpsock_t *client = param;
-    // time_t last_data;
-
-    // pthread_t tid_timer;
-    // pthread_attr_t attr;
-
-    if (tcp_wait_for_connection(server, &client) != TCP_NO_ERROR){
-        printf("wait for connection error.");
-        pthread_exit(NULL);
-    }
-    printf("Incoming client-%d connection\n", conn_counter);
-    pthread_mutex_lock(&counter_mutex);
-    conn_counter++;
-    pthread_mutex_unlock(&counter_mutex);
-
+    int bytes, result;
+    int sensor_id=0;
+    int startconnect_or_not = 0;
     do {
         // read sensor ID
         bytes = sizeof(data.id);
-        result = connmgr_receive_time_limited(client, (void *)&data.id, &bytes, TIMEOUT);
-        if(result == CONNMGR_TIMEOUT) break;
+        result = tcp_receive(client, (void *) &data.id, &bytes);
+        if (result!=TCP_NO_ERROR) break;
+
         // read temperature
         bytes = sizeof(data.value);
-        result = connmgr_receive_time_limited(client, (void *)&data.value, &bytes, TIMEOUT);
-        if(result == CONNMGR_TIMEOUT) break;
+        result = tcp_receive(client, (void *) &data.value, &bytes);
+        if (result!=TCP_NO_ERROR) break;
+
         // read timestamp
         bytes = sizeof(data.ts);
-        result = connmgr_receive_time_limited(client, (void *)&data.ts, &bytes, TIMEOUT);
-        if(result == CONNMGR_TIMEOUT) break;
-        if ((result == TCP_NO_ERROR) && bytes) {
-            printf("Connection manager: sensor id = %" PRIu16
-                   " - temperature = %g - timestamp = %ld, the %d times\n",
-                   data.id, data.value, (long int)data.ts, sequence+1);
-                sbuffer_insert(gateway_buffer, &data);
+        result = tcp_receive(client, (void *) &data.ts, &bytes);
+        if (result!=TCP_NO_ERROR) break;
 
-            // create log for first data package arrived
-            if(sequence == 0){
-                char msg[50];
-                sprintf(msg, "Sensor node %d has opened a new connection.", data.id);
-                write_to_log_process(msg);
-            }
-            sequence++;
+        sensor_id = data.id;
+        if (startconnect_or_not == 0)//Connection for first time
+        {
+            char message2[SIZE];
+            snprintf(message2, SIZE, "Sensor node %d has opened a new connection",sensor_id);
+            pthread_mutex_lock(&mutex_log);
+            write(fd[WRITE_END], message2, strlen(message2)+1);
+            pthread_mutex_unlock(&mutex_log);
+            startconnect_or_not = 1;
+        }
+        if ((result == TCP_NO_ERROR) && bytes) {
+            printf("Connection Manager: sensor id = %" PRIu16 " - temperature = %g - timestamp = %ld\n", data.id, data.value,
+                   (long int) data.ts);
+            sensor_data_t *new_data = (sensor_data_t *)malloc(sizeof(sensor_data_t));
+            new_data->id = data.id;
+            new_data->ts = (long int) data.ts;
+            new_data->value = data.value;
+            new_data->canberemoved = 0;
+            pthread_mutex_lock(&mutex);
+    		printf("Insert final data: %s \n",!sbuffer_insert(sbuffer,new_data)? "Success":"Fail");
+            pthread_mutex_unlock(&mutex);
         }
     } while (result == TCP_NO_ERROR);
-    if (result == TCP_CONNECTION_CLOSED){
+    if (result == TCP_CONNECTION_CLOSED)
+    {
         printf("Peer has closed connection\n");
-        char msg[50];
-        sprintf(msg, "Sensor node %d has closed the connection.", data.id);
-        write_to_log_process(msg);
+        char message2[SIZE];
+        snprintf(message2, SIZE, "Sensor node %d has closed the connection",sensor_id);
+        pthread_mutex_lock(&mutex_log);
+        write(fd[WRITE_END], message2, strlen(message2)+1);
+        pthread_mutex_unlock(&mutex_log);
     }
-    else if(result == CONNMGR_TIMEOUT){
-        printf("Client-%d hasn't sent data for %d seconds. TIMEOUT ERROR.\n", data.id, TIMEOUT);
+    else if (result==TCP_TIMEOUT)
+    {
+        printf("Sensor node %d over time\n",data.id);
+        char message2[SIZE];
+        snprintf(message2, SIZE, "Sensor node %d over time",data.id);
+        pthread_mutex_lock(&mutex_log);
+        write(fd[WRITE_END], message2, strlen(message2)+1);
+        pthread_mutex_unlock(&mutex_log);
     }
-    else    
-        printf("Error occured on connection to peer\n");
-    tcp_close(&client);
 
-    pthread_exit(0);
+    else printf("Error occured on connection to peer\n");
+    tcp_close(&client);
+    return NULL;
 }
 
-int connmgr_receive_time_limited(tcpsock_t *socket, void *buffer, int *buf_size, int seconds){
-    // pthread_t tid_timer;
-    // pthread_
+void *run_connmgr(void *arg){
 
-    // int result = tcp_receive(socket, buf_size, buf_size);
+    printf("Connection manager is started\n");
+    tcpsock_t *server, *client;
+    connmgrdata* Data = (connmgrdata*)arg;
+    int MAX_CONN = Data->MAX_CONN;
+    int PORT = Data->PORT;
+    sbuffer_t *sbuffer = Data->sbuffer;
 
-    // return result;
-    if (!socket || !buffer || !buf_size || *buf_size <= 0) {
-        return TCP_SOCKET_ERROR; // Invalid parameters
+    pthread_t tid[MAX_CONN];
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+
+    printf("Test server is started\n");
+    if (tcp_passive_open(&server, PORT) != TCP_NO_ERROR) exit(EXIT_FAILURE);
+    int conn_counter1 = 0;
+    while (conn_counter1 < MAX_CONN)
+    {
+        if (tcp_wait_for_connection(server, &client) != TCP_NO_ERROR) {
+            fprintf(stderr,"Error: tcp_wait_for_connection() failed.\n");
+            tcp_close(&server);
+            exit(EXIT_FAILURE);
+        }
+        threadData* data = malloc(sizeof(threadData));
+        if (!data) {
+            fprintf(stderr, "Error: Failed to allocate memory for threadData.\n");
+            tcp_close(&client);
+            continue;
+        }
+        data->client = client;
+        data->sbuffer = sbuffer;
+        printf("read_thread: conn_counter = %d\n", conn_counter1);
+        if (pthread_create(&tid[conn_counter1], NULL , read_thread, (void*)data) != 0) {
+            perror("Failed to create thread");
+            tcp_close(&client);
+            free(data);
+            continue;
+        }
+        conn_counter1++;
     }
 
-    // Get the file descriptor from the socket
-    int sock_fd = 0;
-    tcp_get_sd(socket, &sock_fd);
-    if (sock_fd < 0) {
-        return TCP_SOCKET_ERROR; // Error retrieving file descriptor
+    for (int i = 0; i < conn_counter1; i++)
+    {
+        printf("Wait for thread close: thread %d\n",i);
+        pthread_join(tid[i],NULL);
+        printf("Thread %d close",i);
     }
+    if (tcp_close(&server) != TCP_NO_ERROR) exit(EXIT_FAILURE);
+    printf("Complete TCP transfer\n");
+    complete_transfer = 1;
 
-    // Set up the timeout for select()
-    struct timeval timeout;
-    timeout.tv_sec = seconds;
-    timeout.tv_usec = 0;
+    printf("Test server is shutting down\n");
 
-    // Set up the file descriptor set
-    fd_set readfds;
-    FD_ZERO(&readfds);
-    FD_SET(sock_fd, &readfds);
-
-    // Wait for data to become available
-    int result = select(sock_fd + 1, &readfds, NULL, NULL, &timeout);
-    if (result == 0) {
-        // Timeout occurred
-        return CONNMGR_TIMEOUT;
-    } else if (result < 0) {
-        // Error in select()
-        perror("select error");
-        return TCP_SOCKET_ERROR;
-    }
-
-    // Data is available, proceed with tcp_receive
-    return tcp_receive(socket, buffer, buf_size);
+    return NULL;
 }

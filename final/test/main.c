@@ -1,81 +1,173 @@
+
+
+#include <unistd.h>
 #include <pthread.h>
-#include <stdio.h>
 #include "sbuffer.h"
+#include <string.h>
+#include <inttypes.h>
+#include "config.h"
+#include "lib/tcpsock.h"
+#include "connmgr.h"
 #include "datamgr.h"
 #include "sensor_db.h"
-#include "connmgr.h"
 
-sbuffer_t *buffer;
-int MAX_CONN, PORT;
+#define ERROR (-1)
+#define SBUFFER_SIZE 16
+#define SIZE 400
+#define READ_END 0
+#define WRITE_END 1
 
-void *connmgr_thread(void *param);
-void *datamgr_thread(void *param);
-void *sensor_db_thread(void *param);
+typedef struct
+{
+    tcpsock_t *client;
+    tcpsock_t *server;
+} threadData;
+
+typedef struct
+{
+    int MAX_CONN;
+    int PORT;
+    sbuffer_t *sbuffer;
+} connmgrdata;
+
+typedef struct
+{
+    FILE *map;
+    sbuffer_t *sbuffer;
+}datamgrData;
+
+typedef struct
+{
+    sbuffer_t *sbuffer;
+}stormgrData;
+
+pid_t pid;
+int fd[2];
+
+int MAX_CONN;
+int PORT;
+sbuffer_t *sbuffer;
+int complete_transfer=0;
+pthread_mutex_t mutex;
+pthread_mutex_t mutex_log;
+FILE* log_file=NULL;
+static int sequency = 0;
+
+int write_to_log_process(char *msg){
+    for (int i=0; i<SIZE; i++)
+    {
+        printf("%c", msg[i]);
+    }
+    printf("\n");
+    log_file = fopen("gateway.log", "a");
+    if (!log_file)
+    {
+        perror("Failed to open log file");
+        return 0;
+    }
+
+    time_t now = time(NULL);
+    char time_str[SIZE];
+    snprintf(time_str, SIZE, "%s",ctime(&now));
+    int len = strlen(time_str);
+    if (len>0)
+    {
+        time_str[len-1] = '\0';
+    }
+    while (*msg != '\0') {
+        size_t length = strlen(msg);
+        fprintf(log_file, "%d - %s - %.*s\n",sequency++,time_str,(int)length+1, msg);
+        fflush(log_file);
+        msg += length + 1;
+    }
+    fclose(log_file);
+    return 1;
+}
+
+
+
 
 int main(int argc, char *argv[]) {
-    if (argc < 3) {
-        printf("Please provide the right arguments: first the port, then the "
-               "max nb of clients");
+    //Configure the sensor number;
+    if(argc < 3) {
+        printf("Please provide the right arguments: first the port, then the max nb of clients");
         return -1;
     }
     MAX_CONN = atoi(argv[2]);
     PORT = atoi(argv[1]);
-    
-    int result = create_log_process();
-    if (result == -1) {
-        puts("child process generating failed.");
+    FILE * map = fopen("room_sensor.map", "r");
+
+    if (pthread_mutex_init(&mutex, NULL) != 0) {
+        perror("Mutex init failed");
+        return 1;
+    }
+
+    if (pthread_mutex_init(&mutex_log, NULL) != 0) {
+        perror("Mutex_Log init failed");
+        return 1;
+    }
+
+    sbuffer= malloc(SBUFFER_SIZE);
+    printf("%s",!sbuffer_init(&sbuffer)? "OK" : "ERROR");
+
+    if (pipe(fd) == -1) {
+        perror("Pipe failed");
         exit(1);
     }
-    else if(result == 1){ //parent process
-        sbuffer_init(&buffer);
-        
-        pthread_t tid_connmgr, tid_datamgr, tid_sensor_db;
+    pid = fork();
+    if (pid < 0)
+    {
+        perror("Fork failed");
+        exit(1);
+    }
+
+    if (pid == 0) { // 子进程
+        printf("This is stupid child process\n");
+        close(fd[WRITE_END]); // 关闭写端
+        char buffer[SIZE];
+        memset(buffer, 0, SIZE);
+
+
+
+        int flag =0;
+        while (1)
+        {
+
+            pthread_mutex_lock(&mutex_log);
+            flag = read(fd[READ_END],buffer,SIZE-1);
+            pthread_mutex_unlock(&mutex_log);
+            if (flag==0) break;
+            write_to_log_process(buffer); // 写日志
+            memset(buffer, 0, SIZE);
+        }
+        close(fd[READ_END]);
+        exit(0);
+    }
+
+    else//parent process
+    {
+        printf("This is parent process\n")
+;        pthread_t tid[3];
         pthread_attr_t attr;
         pthread_attr_init(&attr);
+        connmgrdata connmgrdata1 = {MAX_CONN,PORT,sbuffer};
+        pthread_create(&tid[0],&attr,run_connmgr,(void*)&connmgrdata1);
+        datamgrData datamgrdata = {map,sbuffer};
+        pthread_create(&tid[1],&attr,datamgr_parse_sensor_files,(void*)&datamgrdata);
+        stormgrData stormgrdata = {sbuffer};
+        pthread_create(&tid[2],&attr,stormgr,(void*)&stormgrdata);
 
-        pthread_create(&tid_connmgr, &attr, connmgr_thread, NULL);
-        pthread_create(&tid_datamgr, &attr, datamgr_thread, NULL);
-        pthread_create(&tid_sensor_db, &attr, sensor_db_thread, NULL);
 
-        pthread_join(tid_connmgr, NULL);
-        pthread_join(tid_datamgr, NULL);
-        pthread_join(tid_sensor_db, NULL);
+        printf("Wait for thread close: Connection Magnager\n");
+        pthread_join(tid[0],NULL);
+        pthread_join(tid[1],NULL);
+        pthread_join(tid[2],NULL);
 
-        sbuffer_free(&buffer);
+        printf("Close all threads\n");
     }
-    
-    end_log_process();
-    printf("Gateway server is shutdown.\n");
 
+    sbuffer_free(&sbuffer);
+    pthread_mutex_destroy(&mutex);
+    pthread_mutex_destroy(&mutex_log);
     return 0;
 }
-
-void *connmgr_thread(void *param){
-    if(connmgr_start(buffer, MAX_CONN, PORT) != CONNMGR_SUCCESS)
-        printf("connmgr fail.\n");
-
-    pthread_exit(0);
-}
-
-void *datamgr_thread(void *param){
-    FILE *map = fopen("room_sensor.map", "r");
-    
-    datamgr_init(map);
-    datamgr_start(buffer);
-    datamgr_free();
-    fclose(map);
-
-    pthread_exit(0);
-}
-void *sensor_db_thread(void *param){
-    FILE *db_file = open_db("data.csv", false);
-    // read data from buffer in a loop
-    // put data into sensor_db.csv
-    start_sensor_db(db_file, buffer);
-
-    close_db(db_file);
-
-    pthread_exit(0);
-}
-
-

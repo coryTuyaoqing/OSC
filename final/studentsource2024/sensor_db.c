@@ -5,7 +5,7 @@
 FILE *open_db(char *filename, bool append) {
     // if in append mode, generate a log saying 'an existing file is opened'
     // if in overwrite mode, generate a log saying 'a new file is genereated'
-    char *msg;
+    char *msg = NULL;
 
 	char *indicator = append ? "a" : "w";
 	FILE *file = fopen(filename, indicator);
@@ -23,7 +23,7 @@ FILE *open_db(char *filename, bool append) {
 	return file;
 }
 int insert_sensor(FILE *f, sensor_id_t id, sensor_value_t value, sensor_ts_t ts) {
-    char msg[50];
+    char msg[50] = {0};
 
     if (f != NULL) {
         int write_result = fprintf(f, "%d, %f, %ld\n", id, value, (long)ts);
@@ -48,7 +48,7 @@ int close_db(FILE *f) {
 
 int start_sensor_db(FILE *f, sbuffer_t *buffer){
 	sensor_data_t sensor_data;
-	int result;
+	int result = 0;
 	while(1){
 		/*read data from buffer*/ 
 		result = sbuffer_remove(buffer, &sensor_data);
@@ -65,7 +65,7 @@ int start_sensor_db(FILE *f, sbuffer_t *buffer){
 		}
 
 		/*insert data into data.csv*/
-		printf("Sensor database: %d - %f - %ld\n", sensor_data.id, sensor_data.value, (long int) sensor_data.ts);
+		printf("Sensor database: sensor-%d - value:%f - time:%ld\n", sensor_data.id, sensor_data.value, (long int) sensor_data.ts);
 		insert_sensor(f, sensor_data.id, sensor_data.value, sensor_data.ts);
 	}
 }
