@@ -3,15 +3,13 @@
  */
 
 #include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
 #include "sbuffer.h"
 
 pid_t pid;
 int fd[2];
 int log_num = 0;
 FILE* log_file;
+pthread_mutex_t fd_mutex;
 
 /**
  * basic node for the buffer, these nodes are linked together to create the buffer
@@ -81,7 +79,7 @@ int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data) {
     }
 
     // remove only when the buffer is removable
-    while(!buffer->removable)
+    while(buffer->removable)
         pthread_cond_wait(&buffer->condvar, &buffer->mutex);
 
     *data = buffer->head->data;
@@ -95,11 +93,11 @@ int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data) {
     }
 
     buffer->removable = false; // set buffer to not removalbe after remove
-    printf("buffer is removed; buffer removable: %s\n", buffer->removable ? "removable" : "not removable");
+    // printf("buffer is removed; buffer removable: %s\n", buffer->removable ? "removable" : "not removable");
 
     pthread_cond_signal(&buffer->condvar);
     pthread_mutex_unlock(&buffer->mutex); // unlock mutex
-    // printf("thread%ld: after read from buffer\n", pthread_self());
+    // printf("thread%ld: after get from buffer\n", pthread_self());
 
     free(dummy);
 
@@ -127,11 +125,11 @@ int sbuffer_peek(sbuffer_t *buffer, sensor_data_t *data){
     *data = buffer->head->data;
 
     buffer->removable = true; // set buffer to removable after peek
-    printf("buffer is peeked; buffer is %s\n", buffer->removable ? "removable" : "not removable");
+    // printf("buffer is peeked; buffer is %s\n", buffer->removable ? "removable" : "not removable");
 
     pthread_cond_signal(&buffer->condvar);
     pthread_mutex_unlock(&buffer->mutex); // unlock mutex
-    // printf("thread%ld: after read from buffer\n", pthread_self());
+    // printf("thread%ld: after peek from buffer\n", pthread_self());
 
     return SBUFFER_SUCCESS;
 }
@@ -174,7 +172,9 @@ int write_to_log_process(char *msg){
 		snprintf(msg_delimited, SIZE, "%s^", msg); // add delimiter '^' to each msg
 
 		// TODO: make sure the pipe is thread safe!
+        pthread_mutex_lock(&fd_mutex);
 		write(fd[WRITE_END], msg_delimited, strlen(msg_delimited));
+        pthread_mutex_unlock(&fd_mutex);
 	}
 
 	return 0;
@@ -193,6 +193,7 @@ int create_log_process(){
 		return -1;
 	}
 	else if(pid > 0){ //parent process
+        pthread_mutex_init(&fd_mutex, NULL);
 		close(fd[READ_END]);
 		return 1;
 	}

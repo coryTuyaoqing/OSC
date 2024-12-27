@@ -11,26 +11,26 @@ FILE *open_db(char *filename, bool append) {
 	FILE *file = fopen(filename, indicator);
 	if (file != NULL) {
 		if (append == true)
-			msg = "Data file opened.";
+			msg = "The old data.csv file is opened.";
 		else
-			msg = "Data file created.";
+			msg = "A new data.csv file has been created.";
 	}
 	else{
-		printf("Data file fail to create\n");
+		printf("data.csv file fail to create\n");
 		return NULL;
 	}
 	write_to_log_process(msg);
 	return file;
 }
 int insert_sensor(FILE *f, sensor_id_t id, sensor_value_t value, sensor_ts_t ts) {
-    char *msg;
+    char msg[50];
 
     if (f != NULL) {
         int write_result = fprintf(f, "%d, %f, %ld\n", id, value, (long)ts);
         if (write_result != -1) {
-            msg = "Data inserted.";
+            sprintf(msg, "Data insertion from sensor %d succeeded.", id);
         } else {
-            msg = "Data insert failed.";
+            sprintf(msg, "Data insertion from sensor %d failed.", id);
         }
     }
 
@@ -40,7 +40,7 @@ int insert_sensor(FILE *f, sensor_id_t id, sensor_value_t value, sensor_ts_t ts)
 }
 int close_db(FILE *f) {
     fclose(f);
-    char *msg = "Data file closed.";
+    char *msg = "The data.csv file has been closed.";
     write_to_log_process(msg);
 
     return 0;
@@ -67,7 +67,7 @@ int start_sensor_db(FILE *f, sbuffer_t *buffer){
 		}
 
 		/*insert data into data.csv*/
-		printf("sensor_db: %d - %f - %ld\n", sensor_data.id, sensor_data.value, (long int) sensor_data.ts);
+		printf("Sensor database: %d - %f - %ld\n", sensor_data.id, sensor_data.value, (long int) sensor_data.ts);
 		insert_sensor(f, sensor_data.id, sensor_data.value, sensor_data.ts);
 	}
 }

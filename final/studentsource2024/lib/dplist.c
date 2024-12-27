@@ -28,7 +28,7 @@ dplist_t* dpl_create( // callback functions
     int (*element_compare)(void* x, void* y))
 {
     dplist_t* list;
-    list = malloc(sizeof(struct dplist));
+    list = malloc(sizeof(dplist_t));
     list->head = NULL;
     list->element_copy = element_copy;
     list->element_free = element_free;

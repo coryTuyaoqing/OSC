@@ -50,7 +50,8 @@ int main(int argc, char *argv[]) {
 }
 
 void *connmgr_thread(void *param){
-    connmgr_start(buffer, MAX_CONN, PORT);
+    if(connmgr_start(buffer, MAX_CONN, PORT) != CONNMGR_SUCCESS)
+        printf("connmgr fail.\n");
 
     pthread_exit(0);
 }
@@ -58,7 +59,7 @@ void *connmgr_thread(void *param){
 void *datamgr_thread(void *param){
     FILE *map = fopen("room_sensor.map", "r");
     datamgr_init(map);
-    datamgr_start(buffer);
+    // datamgr_start(buffer);
     datamgr_free();
     pthread_exit(0);
 }

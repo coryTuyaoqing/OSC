@@ -133,9 +133,15 @@ int datamgr_start(sbuffer_t *buffer) {
 		/*give out advice*/ 
 		if(element->temp_avg > SET_MAX_TEMP){
 			printf("Warning: Room-%d is too hot.\n", element->room_id);
+			char msg[100];
+			sprintf(msg, "Sensor node %d reports it's too hot (avg temp = %f)", element->sensor_id, element->temp_avg);
+			write_to_log_process(msg);
 		}
 		else if(element->temp_avg < SET_MIN_TEMP){
 			printf("Warning: Room-%d is too cold.\n", element->room_id);
+			char msg[100];
+			sprintf(msg, "Sensor node %d reports it's too cold (avg temp = %f)", element->sensor_id, element->temp_avg);
+			write_to_log_process(msg);
 		}
 	}
 }

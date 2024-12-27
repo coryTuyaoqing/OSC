@@ -62,6 +62,5 @@ clean-all: clean
 
 run : sensor_gateway sensor_node
 	./sensor_gateway 1234 1
-
 zip:
 	zip lab_final.zip main.c connmgr.c connmgr.h datamgr.c datamgr.h sbuffer.c sbuffer.h sensor_db.c sensor_db.h config.h lib/dplist.c lib/dplist.h lib/tcpsock.c lib/tcpsock.h Makefile

@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include "config.h"
 
-#define SIZE 512 
+#define SIZE 2048
 #define READ_END 0
 #define WRITE_END 1
 #define LOG_FILE_NAME "gateway.log"
