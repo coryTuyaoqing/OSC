@@ -109,8 +109,10 @@ int datamgr_start(sbuffer_t *buffer) {
 	int result;
 	while(1){
 		/*read data from buffer*/ 
-		result = sbuffer_peek(buffer, &sensor_data);
-		// printf("datamgr read no data\n");
+		do{
+			result = sbuffer_peek(buffer, &sensor_data);
+			// printf("datamgr read no data\n");
+		}while(result == SBUFFER_NO_DATA);
 		if(result == SBUFFER_FAILURE){
 			printf("Data manager fail to read data from buffer\n");
 			return DATAMGR_FAILURE;

@@ -69,10 +69,19 @@ int sbuffer_remove(sbuffer_t *buffer, sensor_data_t *data) {
         pthread_mutex_unlock(&buffer->mutex); // unlock mutex
         return SBUFFER_FAILURE;
     }
+    if (buffer->head == NULL) { // no data
+        pthread_mutex_unlock(&buffer->mutex); // unlock mutex
+        return SBUFFER_NO_DATA;
+    }
 
     // can't remove when the buffer is not removable or empty
-    while(!buffer->removable || buffer->head == NULL)
+    while(!buffer->removable)
         pthread_cond_wait(&buffer->condvar, &buffer->mutex);
+
+    if (buffer->head == NULL) { // no data
+        pthread_mutex_unlock(&buffer->mutex); // unlock mutex
+        return SBUFFER_NO_DATA;
+    }
 
     *data = buffer->head->data;
     dummy = buffer->head;
@@ -104,10 +113,18 @@ int sbuffer_peek(sbuffer_t *buffer, sensor_data_t *data){
         pthread_mutex_unlock(&buffer->mutex); // unlock mutex
         return SBUFFER_FAILURE;
     }
-
+    if (buffer->head == NULL) { // no data
+        pthread_mutex_unlock(&buffer->mutex); // unlock mutex
+        return SBUFFER_NO_DATA;
+    }
     // can't peek when buffer is removable or empty
-    while(buffer->removable || buffer->head == NULL)
+    while(buffer->removable)
         pthread_cond_wait(&buffer->condvar, &buffer->mutex);
+
+    if (buffer->head == NULL) { // no data
+        pthread_mutex_unlock(&buffer->mutex); // unlock mutex
+        return SBUFFER_NO_DATA;
+    }
 
     *data = buffer->head->data;
 
@@ -147,7 +164,7 @@ int sbuffer_insert(sbuffer_t *buffer, sensor_data_t *data) {
         buffer->tail->next = dummy;
         buffer->tail = buffer->tail->next;
     }
-    pthread_cond_signal(&buffer->condvar);
+    
     pthread_mutex_unlock(&buffer->mutex); // unlock mutex
     // printf("thread%ld: after insert data\n", pthread_self());
 
